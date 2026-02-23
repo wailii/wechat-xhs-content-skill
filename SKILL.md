@@ -200,14 +200,29 @@ If a draft is under-length, expand before saving the file.
 
 ## WeChat Article Rules
 
-- Use narrative hook, then problem framing, then method/flow, then results, then reflection.
-- Allow variants: “观点短论” or “清单干货” when the topic fits better.
+**核心原则：让读者跟着经历走，自己产生感受，而不是被教育。**
+
+**叙事结构（优先使用）：**
+- 从一个具体的时间点或场景切入，不要从"宏大背景"开头
+- 按时间线或因果链推进，在经历中自然带出观点
+- 结尾点到为止，不做总结，不升华，不说"这说明了什么"
+- 允许思路有跳跃感，不需要每段都有完美的过渡句
+
+**禁止使用"教程框架"：**
+- ❌ 开头痛点 → 中间方案 → 结尾升华（这是 AI 的默认模板）
+- ❌ 能做什么 → 在哪做 → 能带来什么改变（这是说明书结构）
+- ❌ 结尾用金句总结规律，比如"如果你不能……那再强的模型也只是黑盒"
+- ❌ 把经历包装成完美成功案例，夸大成果
+
+**关于小标题：** 可以用，标题要是"这件事叫什么"，不是"这件事说明了什么道理"。
+
+- Allow variants: "观点短论" or "清单干货" when the topic fits better.
 - Keep paragraphs short, avoid overly academic tone.
 - Use clear section subtitles to improve scanability; let the model decide the count based on content density.
 - Include 2–4 scannable lists.
 - End with a **tight summary /收束** (no marketing CTA).  
   - 2–4 sentences，回到开头的困境与变化  
-  - 可以留一个问题，但不引导“关注/评论/私信/领取”  
+  - 可以留一个问题，但不引导"关注/评论/私信/领取"  
   - 不做夸大承诺，不用模板式鸡汤
 - WeChat images can be photo/illustration/diagram based on tone; do not force Q-style.
 - Ensure the main body length meets the 2400–2600 character gate.
