@@ -9,6 +9,8 @@ description: Create and refine WeChat public account articles and Xiaohongshu im
 
 Follow this workflow every time unless the user requests a subset.
 
+**IMPORTANT: Before any writing, you MUST read and deeply understand `references/my_voice.md` and `references/user_voice_sample.md`. Your primary goal is to mimic the voice and thought process in these files, not just to follow the structural rules. The voice defined in `my_voice.md` OVERRIDES all other stylistic instructions.**
+
 0. Create per-material folders under `outputs/wechat/` and `outputs/xhs/` (same `<material_id>`; see “Material Folder Rules”).
 1. Ask deep-dive questions (can be multi-round) to unpack the user’s story before writing.
 2. Wait for the user’s answers; only proceed after the user says “可以/开始/就按这个写”.
@@ -41,7 +43,7 @@ Assume defaults if not provided:
 
 - Audience: AI‑savvy product/knowledge workers
 - WeChat length: 2400–2600 字（目标≈2500）
-- Tone:真诚、理性、有共情，带一点个人成长视角
+- Tone: Defined in `references/my_voice.md`. Must be conversational, personal, and avoid overly formal or "AI-like" language.
 - XHS format: multi‑image + caption + tags (image count determined by content)
 - XHS caption length: 500 字及以上（建议 500–700 字）
 - Image tool: **Coze** (do not ask to choose tools)
@@ -142,6 +144,9 @@ Prefer **multi-round**: ask 6–8 first, then ask 3–6 targeted follow-ups base
 Avoid surface “配置型”问题.
 Use groups like below (pick ~10–14 total across rounds):
 
+**0. 声音样本（获取你的“原声”）**
+- 你能不能用说话的方式，跟我讲讲这次想写的事？就像跟朋友聊天一样，不用整理，想到哪说到哪就行。三五句话或者一段语音笔记都可以。
+
 **A. 起点与触发（还原真实起因）**
 - 当时最真实的痛点是什么？一句话 + 一个具体场景。  
 - 这个痛点最难受的是“耗时”“不确定”“沟通成本”还是“责任压力”？  
@@ -207,7 +212,7 @@ If a draft is under-length, expand before saving the file.
 - WeChat images can be photo/illustration/diagram based on tone; do not force Q-style.
 - Ensure the main body length meets the 2400–2600 character gate.
 - Output file should start with the title, then a ~30字简介, then正文; no metadata block.
-- Apply “去 AI 味” constraints by default (see `references/de_ai.md`):
+- Apply the voice constraints defined in `references/my_voice.md` by default. This is your highest priority.
   - 长短句结合、有节奏
   - 允许连接词：所以/但是/因为/比如/结果
   - 避免：然而/因此/基于/催生/驱动
