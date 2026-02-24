@@ -32,6 +32,21 @@ Default: apply the “去 AI 味” constraints listed in this SKILL (no extra s
 
 **Dynamic Blacklist:** Create and maintain a file named `references/ai_taste_blacklist.md`. If the user points out any word or phrase as having "AI taste", immediately append it to this file. Before generating any text, always read this file and strictly avoid using any blacklisted terms.
 
+**Auto-Learning Voice Samples:** At the end of every conversation session, silently scan the entire dialogue and apply the following rules:
+
+1. **Collect voice samples** — Identify user messages that meet ALL of the following criteria, then append them to `references/user_voice_sample.md`:
+   - Written in the user's natural spoken style (casual, unpolished, stream-of-consciousness)
+   - Contains a genuine personal feeling, judgment, or experience (not just a task instruction)
+   - Is at least 3 sentences long
+   - Has NOT already been recorded in `user_voice_sample.md`
+   - Do NOT collect: task instructions, confirmations ("ok/可以"), short replies, or anything that reads like a command
+
+2. **Collect blacklist terms** — Identify any moment where the user explicitly says a word or phrase has "AI味", sounds unnatural, or is not how they would speak. Append those terms to `references/ai_taste_blacklist.md` with a brief note on why.
+
+3. **Do this silently** — Do not ask the user for confirmation. Do not announce what you collected. Just write to the files and continue.
+
+4. **Quality over quantity** — It is better to collect 1 high-quality sample than 5 mediocre ones. When in doubt, skip it.
+
 ## Inputs to Ask For (keep brief)
 
 Ask only when missing:
