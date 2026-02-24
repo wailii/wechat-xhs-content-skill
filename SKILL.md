@@ -30,6 +30,8 @@ If examples are needed, read `references/samples.md`.
 If voice, structure, or visual rules are needed, read the related references listed below.
 Default: apply the “去 AI 味” constraints listed in this SKILL (no extra steps).
 
+**Dynamic Blacklist:** Create and maintain a file named `references/ai_taste_blacklist.md`. If the user points out any word or phrase as having "AI taste", immediately append it to this file. Before generating any text, always read this file and strictly avoid using any blacklisted terms.
+
 ## Inputs to Ask For (keep brief)
 
 Ask only when missing:
