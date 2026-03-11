@@ -1,4 +1,4 @@
 interface:
-  display_name: "WeChat + 小红书内容"
-  short_description: "生成公众号文章与小红书图文的一体化流程"
-  default_prompt: "Use $wechat-xhs-content to plan a topic and draft a WeChat article plus Xiaohongshu image storyboard."
+  display_name: "公众号 + 小红书内容"
+  short_description: "按体裁路由生成公众号文章、小红书图文和公众号配图描述"
+  default_prompt: "Use $wechat-xhs-content to collect free narration, run format routing and targeted follow-up, then draft a WeChat article, WeChat image scene descriptions, and a Xiaohongshu post."

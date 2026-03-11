@@ -1,51 +1,113 @@
 ---
-name: wechat-xhs-content
-description: Create and refine WeChat public account articles and Xiaohongshu image-first posts for AI-savvy product/knowledge workers, including topic selection, outline, copywriting, image storyboard, and platform-specific packaging. Use when drafting ~2500 Chinese-character WeChat pieces (target 2400–2600), converting a topic into a Xiaohongshu multi-image narrative, or generating image prompts that keep a consistent Q-style main character.
+name: "wechat-xhs-content"
+description: "Create staged WeChat public account articles and Xiaohongshu posts with clarifying Q&A, material extraction, WeChat article drafting, WeChat image scene descriptions, and Xiaohongshu storyboard plus caption output. Use when the user asks for 公众号文章, 微信公众号内容, 小红书文案, XHS 图文, 配图描述, 图文分镜, or adapting one story for both channels. No direct image generation."
+compatibility: "Claude.ai and Claude Code. Text drafting works without external APIs. Optional local helper scripts are included for folder setup."
+metadata:
+  author: "wali"
+  version: "2026-03-10-format-routing-v2"
 ---
 
-# WeChat + 小红书内容工作流
+# WeChat + 小红书内容工作流（含体裁路由 + 认知核查）
 
 ## Quick Start
 
 Follow this workflow every time unless the user requests a subset.
 
-**IMPORTANT: Before any writing, you MUST read and deeply understand `references/my_voice.md` and `references/user_voice_sample.md`. Your primary goal is to mimic the voice and thought process in these files, not just to follow the structural rules. The voice defined in `my_voice.md` OVERRIDES all other stylistic instructions.**
+0. Create per-material folders under `outputs/wechat/` and `outputs/xhs/` (same `<material_id>`; see "Material Folder Rules").
+1. Ask user to narrate freely — user always narrates in story form first, this is their natural mode.
+2. Run Format Routing immediately after narration — judge best format, wait for user confirmation (see "Format Routing").
+3. Run targeted follow-up questions based on the confirmed format (see "Clarifying Questions").
+4. Run Cognitive Check during follow-up — flag factual errors or logical blind spots, wait for user clarification (see "Cognitive Check Rule").
+5. Extract material + lock core stance, wait for user confirmation (see "Multi-Phase Output Contract").
+6. If (and only if) the user explicitly provides a source document path, read it.
+7. Draft WeChat article and save to `outputs/wechat/<material_id>/wechat_article.md`.
+8. Stop and wait for user approval ("OK/继续/通过").
+9. Draft WeChat image scenes and save to `outputs/wechat/<material_id>/image_prompts.md`.
+10. Stop and wait for user approval ("OK/继续/通过").
+11. Draft Xiaohongshu post and save to `outputs/xhs/<material_id>/xhs_post.md`.
+12. If needed, iterate text only (no direct image generation in this skill).
 
-0. Create per-material folders under `outputs/wechat/` and `outputs/xhs/` (same `<material_id>`; see “Material Folder Rules”).
-1. Ask deep-dive questions (can be multi-round) to unpack the user’s story before writing.
-2. Wait for the user’s answers; only proceed after the user says “可以/开始/就按这个写”.
-3. If (and only if) the user explicitly provides a source document path, read it.
-4. Write a **writing brief** (`00_brief.md`) into the material folder and **stop** for user confirmation.
-5. Draft the WeChat article (2400–2600 Chinese characters, target ~2500; include section subtitles) and save to the material folder.
-6. **Stop and wait for user approval** (“OK/继续/通过”) before proceeding.
-7. Generate a WeChat image plan + image prompts and save as a separate notes file in the material folder.
-8. **Stop and wait for user approval** (“OK/继续/通过”) before generating any images.
-9. Generate **only the first** WeChat image prompt and, if asked to generate images, produce **only the first image**; run the mandatory image QA loop until pass.
-10. Wait for user confirmation that the style is OK (“风格OK/继续”), then generate the remaining WeChat images/prompts with per-image QA; after all pass, return to `wechat_article.md` and mark where each image should be inserted.
-11. Build the Xiaohongshu outline/storyboard (text only) and wait for user approval.
-12. Generate **only the first** Xiaohongshu image prompt and, if asked to generate images, produce **only the first image**; run the mandatory image QA loop until pass.
-13. Wait for user confirmation that the style is OK (“风格OK/继续”), then generate the remaining Xiaohongshu images/prompts with per-image QA and complete `xhs_post.md` (caption + hashtags).
+---
 
-If examples are needed, read `references/samples.md`.
-If voice, structure, or visual rules are needed, read the related references listed below.
-Default: apply the “去 AI 味” constraints listed in this SKILL (no extra steps).
+## Format Routing（体裁路由）
 
-**Dynamic Blacklist:** Create and maintain a file named `references/ai_taste_blacklist.md`. If the user points out any word or phrase as having "AI taste", immediately append it to this file. Before generating any text, always read this file and strictly avoid using any blacklisted terms.
+### 执行时机
 
-**Auto-Learning Voice Samples:** At the end of every conversation session, silently scan the entire dialogue and apply the following rules:
+**用户完成第一次自由口述之后，立即执行体裁路由——在定向追问之前。**
 
-1. **Collect voice samples** — Identify user messages that meet ALL of the following criteria, then append them to `references/user_voice_sample.md`:
-   - Written in the user's natural spoken style (casual, unpolished, stream-of-consciousness)
-   - Contains a genuine personal feeling, judgment, or experience (not just a task instruction)
-   - Is at least 3 sentences long
-   - Has NOT already been recorded in `user_voice_sample.md`
-   - Do NOT collect: task instructions, confirmations ("ok/可以"), short replies, or anything that reads like a command
+用户永远以叙事方式口述，这是他们的自然状态，不要让用户在讲述前就想好体裁。先听完，再判断。
 
-2. **Collect blacklist terms** — Identify any moment where the user explicitly says a word or phrase has "AI味", sounds unnatural, or is not how they would speak. Append those terms to `references/ai_taste_blacklist.md` with a brief note on why.
+### 判断逻辑
 
-3. **Do this silently** — Do not ask the user for confirmation. Do not announce what you collected. Just write to the files and continue.
+根据用户提供的素材，沿以下决策树判断：
 
-4. **Quality over quantity** — It is better to collect 1 high-quality sample than 5 mediocre ones. When in doubt, skip it.
+```
+素材进来
+  ├── 素材有具体的时间线、经历、踩坑 → [叙事体]
+  ├── 素材核心是一个争议性命题，存在内在矛盾或两种声音 → [对话体]
+  ├── 素材是一个工具/系统/工作流，需要剖开来讲清楚逻辑 → [拆解体]
+  └── 素材是一个"如果……会怎样"的假设性问题，需要推演 → [思想实验体]
+```
+
+**遇到边界情况时（素材可能跨两种体裁）：**
+- 把两种体裁都列出来，说明各自的侧重点，让用户选择
+- 不能自行决定后直接写，必须得到用户确认
+
+### 输出格式（必须执行）
+
+判断完成后，输出一段说明，格式如下：
+
+```
+【体裁判断】
+我判断这篇适合用「XX体」，原因是：[1-2句说明为什么这个素材适合这个体裁]
+
+[如果是对话体，额外输出：]
+角色搭档建议：
+方案 A：[角色A] vs [角色B] — 核心张力：[一句话说明]
+方案 B：[角色A] vs [角色B] — 核心张力：[一句话说明]
+方案 C：[角色A] vs [角色B] — 核心张力：[一句话说明]
+
+你确认用这个体裁吗？
+```
+
+等用户确认后，读取对应的 format 文件，再进入写作。
+
+### 体裁对应的 Format 文件（Progressive Loading）
+
+| 体裁 | 读取文件 |
+|---|---|
+| 叙事体 | `references/format_narrative.md` |
+| 对话体 | `references/format_dialogue.md` |
+| 拆解体 | `references/format_breakdown.md` |
+| 思想实验体 | `references/format_thought_exp.md` |
+
+**硬规则：** 每次只读一个 format 文件，对应用户确认的体裁。不要一次全部读入。
+
+---
+
+## Progressive Loading (Hard Rule)
+
+Read only what is needed:
+
+- Always read before any writing:
+  - `references/my_voice.md`
+  - `references/user_voice_sample.md`
+  - `references/ai_taste_blacklist.md`
+- Read when needed:
+  - `references/samples.md` (if examples are needed)
+  - `references/title_rules.md` (when generating title options)
+  - `references/wechat_article_rules.md` (before drafting WeChat article — 叙事体专用，其他体裁用对应 format 文件替代)
+  - `references/format_narrative.md` (叙事体，替代 wechat_article_rules.md)
+  - `references/format_dialogue.md` (对话体，用户确认后读取)
+  - `references/format_breakdown.md` (拆解体，用户确认后读取)
+  - `references/format_thought_exp.md` (思想实验体，用户确认后读取)
+  - `WeChat Image Prompt Rules` in this file (before drafting WeChat image prompts)
+  - `references/xhs_rules.md` (before drafting XHS storyboard/caption)
+  - `references/channel_adaptation.md` (only when user asks about 微信小绿书/小红书导入适配)
+
+If there is any conflict between old legacy reference files and the rules in this SKILL + above new reference files, follow this SKILL and the above new reference files.
+
+---
 
 ## Inputs to Ask For (keep brief)
 
@@ -54,451 +116,205 @@ Ask only when missing:
 - Topic / material name (1 sentence; used for folder naming)
 - Audience and desired outcome
 - Any constraints (length, tone, deadlines)
-- Clarifying Q&A required before writing (see “Clarifying Questions”)
+- Clarifying Q&A required before writing (see "Clarifying Questions")
 
 Assume defaults if not provided:
 
-- Audience: AI‑savvy product/knowledge workers
-- WeChat length: 2400–2600 字（目标≈2500）
+- Audience: AI-savvy product/knowledge workers
+- WeChat length: determined by format file (varies by format type)
 - Tone: Defined in `references/my_voice.md`. Must be conversational, personal, and avoid overly formal or "AI-like" language.
-- XHS format: multi‑image + caption + tags (image count determined by content)
-- XHS caption length: 500 字及以上（建议 500–700 字）
-- Image tool: **Coze** (do not ask to choose tools)
+- XHS format: multi-image narrative + caption + tags (image count determined by content)
+- XHS caption length: 200–400 字
+
+---
 
 ## Deliverables
 
-Always output in **separate files** with **clean content only**:
+Always output in separate files with clean content only:
 
-- Material brief (Q&A digest + decisions): `outputs/wechat/<material_id>/00_brief.md`
-- WeChat draft (final article only + image placement markers after image phase): `outputs/wechat/<material_id>/wechat_article.md`
-- WeChat notes (image plan + prompts): `outputs/wechat/<material_id>/wechat_notes.md`
-- Xiaohongshu draft (storyboard + caption + prompts): `outputs/xhs/<material_id>/xhs_post.md`
+- WeChat draft (title + body only): `outputs/wechat/<material_id>/wechat_article.md`
+- WeChat image scenes (6 images): `outputs/wechat/<material_id>/image_prompts.md`
+- Xiaohongshu draft (storyboard + caption + hashtags): `outputs/xhs/<material_id>/xhs_post.md`
 
 Only after writing files, provide a short response that lists the updated file paths.
 
+---
+
 ## Stage Gates (Hard Rule)
 
-- Gate A: After clarifying Q&A, wait for “开始/就按这个写”.
-- Gate B: After `00_brief.md`, wait for “OK/继续/通过”.
-- Gate C: After WeChat article, wait for “OK/继续/通过”.
-- Gate D: After `wechat_notes.md`, wait for “OK/继续/通过”.
-- Gate E: After first WeChat image (QA pass), wait for “风格OK/继续”.
-- Gate F: After XHS storyboard, wait for “OK/继续/通过”.
-- Gate G: After first XHS image (QA pass), wait for “风格OK/继续”.
+- Gate A: After free narration, run format routing immediately — wait for user confirmation of format type. For dialogue format, also confirm role pair.
+- Gate B: After targeted follow-up questions complete, wait for "开始/就按这个写/可以".
+- Gate C: After material extraction + stance lock, wait for user confirmation of both extracted details and core stances.
+- Gate D: After WeChat article, wait for "OK/继续/通过".
+- Gate E: After `image_prompts.md`, wait for "OK/继续/通过".
+- Gate F: After `xhs_post.md`, wait for "OK/继续/通过".
 
-Do **not** proceed past a gate without explicit user confirmation.
+Do not proceed past a gate without explicit user confirmation.
 
-## Brief File Rules (`00_brief.md`)
+---
 
-Purpose: lock the story and constraints before drafting, reduce “写偏了/写乱了”.
+## WeChat File Rules
 
-Keep it short and scannable (recommended ≤ 400–800 Chinese characters):
+- Only final article content: 标题 + 正文。
+- 不要在开头输出元信息、流程标签、说明文字。
+- 正文可以有小标题，但不要使用"第一部分/第二部分"这类模板标题。
+- 不要包含任何生图提示词、配图计划或素材生成说明。
 
-- 选题一句话（用用户原话）
-- 目标读者 + 期望读完后的动作
-- 真实起因（1 个场景）+ 最难受的点（1 句）
-- 你做了什么（3–6 步流程，尽量具体到“文件/脚本/习惯”）
-- 踩坑与关键调整（2–4 条）
-- 结果证据（尽量数字化；不够就标“待补”并反问）
-- 文章结构选择（默认叙事 / 清单干货 / 观点短论）+ 选择理由
-- 禁区（哪些内容不要写/不要夸大/不要虚构）
-- **核心立场锁定（必填）：** 这篇文章的核心观点是什么？包括否定性判断（比如“我不认为 workflow 是 Agent”）。一旦用户确认，文章中不得偏离此立场。
+---
 
-End with: "我理解对不对？要不要改？" + 3 个最关键反问（用于最后补齐缺口）。
+## WeChat Image Prompt Rules
 
-WeChat file content rules:
+- 必须读取已确认的 `wechat_article.md`，再生成配图描述。
+- 输出文件：`outputs/wechat/<material_id>/image_prompts.md`。
+- 固定 6 张图：封面（图1）+ 图2-图6（起点/第一个坑/最崩瞬间/转折复盘/结尾落点）。
+- 每张图都要写：用途、情绪、场景描述（给 Gemini），并且是横图 16:9。
+- 场景描述必须包含：角色情绪 + 动作/姿态 + 屏幕/道具内容 + 背景色调。
+- 禁止泛描述（如"人在用电脑""人在思考""成功微笑完成任务"）。
+- 图内文字用中文；产品名保留英文原名（OpenClaw、Kimi、CodeX、Claude 等）。
+- 本阶段只生成场景描述，不直接生成图片。
 
-- **Only** the final article (title + 30字左右简介 + 正文).  
-- 正文需要章节小标题，但数量由内容决定（不要写“第一部分/第二部分”这种模板标题）。
-- **Do not** include outlines or image plans in the article file.
-- After WeChat images pass QA, go back to `wechat_article.md` and add concise placement markers in-body (e.g., `[配图-01]`), so each image has a clear insertion position.
-- Always write a **separate** WeChat notes file containing:
-  - WeChat image plan (what images, style, where to place)
-  - WeChat image prompts (per image)
+---
 
-Xiaohongshu file sections:
+## Xiaohongshu File Rules
 
-- Xiaohongshu storyboard (per image)
-- Image prompts (per image)
-- Xiaohongshu caption + hashtags
+- 包含图文分镜（每张图：场景描述 + 1 个标题 + 内容）。
+- 包含小红书正文（200–400 字）和 hashtags。
+- 不要包含任何生图提示词。
+- 图文分镜中每张图的场景描述，最终会发给 Gemini 生成图片。描述要足够具体，包含情绪、动作、屏幕内容和道具。
 
 Never combine WeChat and XHS drafts into a single file.
 
+---
+
 ## Output Hygiene (Hard Rule)
 
-- Always write into `outputs/wechat/<material_id>/` and `outputs/xhs/<material_id>/` only.  
-- Never write Markdown drafts directly under `outputs/` root.  
+- Always write into `outputs/wechat/<material_id>/` and `outputs/xhs/<material_id>/` only.
+- Never write Markdown drafts directly under `outputs/` root.
 - Ensure directories exist before writing.
+
+---
 
 ## Source Document Policy
 
-- Do **not** read any source document unless the user explicitly provides the file path.
+- Do not read any source document unless the user explicitly provides the file path.
 - If no path is provided, proceed with questions only and do not assume a default document.
+
+---
 
 ## Material Folder Rules (Hard Rule)
 
-For every new topic/material, create a dedicated folder under **both** platform directories using the same `<material_id>`:
+For every new topic/material, create a dedicated folder under both platform directories using the same `<material_id>`:
 
 - WeChat root: `outputs/wechat/YYYYMMDD_HHMMSS_<素材名>/`
-  - Files: `00_brief.md`, `wechat_article.md`, `wechat_notes.md`
-  - Images: `outputs/wechat/<material_id>/images/`
+  - Files: `wechat_article.md`
+  - Images: `outputs/wechat/<material_id>/images/` (optional; user-managed assets)
 - XHS root: `outputs/xhs/YYYYMMDD_HHMMSS_<素材名>/`
   - Files: `xhs_post.md`
-  - Images: `outputs/xhs/<material_id>/images/`
+  - Images: `outputs/xhs/<material_id>/images/` (optional; user-managed assets)
 
 Naming:
 
 - `YYYYMMDD_HHMMSS` uses local time.
-- `<素材名>` is a short human-readable name (Chinese ok). Strip `/\\:*?\"<>|` and keep it ≤ 30 chars.
+- `<素材名>` is a short human-readable name (Chinese ok). Strip `/\\:*?"<>|` and keep it <= 30 chars.
 
 Optional helper:
 
 - Create folders via `scripts/new_material.py "<素材名>"`
 
-## Clarifying Questions (Required)
+---
 
-Before writing, ask deep‑dive questions that unpack the user’s story and help them think.
-Prefer **multi-round**: ask 6–8 first, then ask 3–6 targeted follow-ups based on answers.
-Avoid surface “配置型”问题.
-Use groups like below (pick ~10–14 total across rounds):
+## Clarifying Questions（定向追问）
 
-**0. 声音样本（获取你的“原声”）**
-- 你能不能用说话的方式，跟我讲讲这次想写的事？就像跟朋友聊天一样，不用整理，想到哪说到哪就行。三五句话或者一段语音笔记都可以。
+### 第一轮：永远只问一个问题
 
-**A. 起点与触发（还原真实起因）**
-- 当时最真实的痛点是什么？一句话 + 一个具体场景。  
-- 这个痛点最难受的是“耗时”“不确定”“沟通成本”还是“责任压力”？  
-- 你在什么具体时刻意识到：必须试 AI？
-- 开头你希望落在哪个“镜头”？按这个格式回答：**时间+地点+你在做什么+卡在哪一步+当时一句心里话**  
-  - 例：周一 23:40，工位写 PRD，第 3 次把同一段背景复制到新对话，我心里想“又要重讲一遍”。
+> 你能不能用说话的方式，把这件事从头跟我讲一遍？就像跟朋友聊天一样，不用整理，想到哪说到哪。讲完我再问你几个细节。
 
-**B. 你做了什么（过程拆解）**
-- 你第一版流程是什么？最粗糙也可以。  
-- 你做出的最关键的 1–2 个设计决策是什么？  
-- 哪一步你觉得“没有这一步就不成立”？
+### 第二步：立即做体裁路由（见 Format Routing 章节）
 
-**C. 踩坑与调整（反向拆解）**
-- 哪一段失败最明显？具体失败表现是什么？  
-- 你尝试过的无效方案有哪些？为什么没用？  
-- 最后是哪一次调整让它真正变好？
+不要在体裁确认之前就追问。先路由，再追问。
 
-**D. 结果与证据（可验证）**
-- 给一个“前后对比”的具体例子。  
-- 你最认可的 1–2 个指标是什么？  
-- 这套方法的边界是什么？什么场景会失效？
+### 第三步：根据确认的体裁，定向追问缺失信息
 
-**E. 人的变化（强化真实感）**
-- 这套流程对你个人最大的改变是什么？  
-- 你最想对“过去那个自己”说的一句话是什么？
+追问数量没有上限，用户明确表示不会嫌烦，发现关键信息缺失就问，可以多轮。
 
-Only proceed after user confirmation (e.g., “可以/开始/就按这个写”).
+**但每个体裁关注的信息不同：**
+
+| 体裁 | 追问重点 |
+|---|---|
+| 叙事体 | 时间节点、情绪变化、具体细节（被跳过的"理所当然"的部分）、失败和没做好的地方 |
+| 对话体 | 你内心的另一种声音是什么、让你真正动摇的论点在哪里、现在的判断是什么 |
+| 拆解体 | 每个关键步骤的具体操作、遇到了什么问题、为什么这样设计而不是那样 |
+| 思想实验体 | 这个假设的触发点是什么、推演到哪里会卡住、你自己最不确定的地方是哪里 |
+
+**追问时注意挖"被跳过的细节"：**
+用户习惯跳过自认为理所当然的部分。如果听到"然后就……"、"之后就……"，这里几乎一定有被省略的有画面感的细节，必须追问。
+
+Only proceed to material extraction after user signals readiness (e.g., "可以/开始/就按这个写").
+
+---
+
+## Cognitive Check Rule（认知核查）— Hard Rule
+
+### 什么时候触发
+
+在定向追问阶段，如果发现用户陈述中存在以下情况，必须立即提出：
+
+- **事实性错误**：用户描述的某个工具/产品/技术细节与实际情况不符
+- **逻辑盲点**：用户的推理链条在某处有明显跳跃或漏洞，可能影响文章的可信度
+- **与已知信息矛盾**：用户现在说的和之前说过的有明显冲突
+
+### 怎么提出
+
+用追问的方式，不是纠正的方式：
+
+> "这里我有个疑问——[具体描述你发现的问题]。你当时的情况是不是……？"
+
+等用户回应后重新确认，再继续。
+
+### 什么时候不触发
+
+- 用户有强立场和否定性判断：**不触发**，不需要"平衡"，立场是用户的，不是错误
+- 用户的表达方式不够精确：**不触发**，这是语感问题，不是认知问题
+- 用户对某件事有不满或批评：**不触发**，情绪和判断是真实的，不需要被纠正
+
+**核心原则：只纠事实，不纠立场。**
+
+---
 
 ## Multi-Phase Output Contract
 
 This skill must be run in distinct phases:
 
-1. Generate `00_brief.md`, then stop.
-2. Generate WeChat article (with section subtitles), then stop.
-3. Generate `wechat_notes.md` (WeChat image plan + prompts), then stop.
-4. Generate **only the first** WeChat image prompt/image; run QA loop until pass, then stop (wait for “风格OK/继续”).
-5. Generate remaining WeChat images/prompts; run QA loop per image; then update `wechat_article.md` with image placement markers, then stop.
-6. Generate XHS storyboard, then stop.
-7. Generate **only the first** XHS image prompt/image; run QA loop until pass, then stop (wait for “风格OK/继续”).
-8. Generate remaining XHS images/prompts with QA loop and complete `xhs_post.md`, then stop.
+1. **自由口述**：用户用说话的方式讲，不限方式，不限长度。
+2. **体裁路由**：判断体裁并输出理由，如果是对话体同时给出角色搭档方案，等用户确认。
+3. **定向追问**：根据确认的体裁，多轮追问缺失信息。追问过程中同时执行认知核查。
+4. **素材提炼 + 立场锁定**（必做，写作前）：
+   - 从用户回答中挑出 5–8 个最具体、最有画面感的句子或细节，列出来给用户确认
+   - 同时单独列出用户的**核心立场**（尤其是否定性判断），让用户逐条确认
+   - 给出 3 个候选标题
+   - 等用户确认后才能进入写作
+5. 读取对应的 format 文件（Progressive Loading 规则），然后 generate `wechat_article.md`，then stop.
+6. **字数自检**（必做，保存前）：统计中文字数，目标字数见对应 format 文件。若不足，不允许自行扩写补字数，必须继续向用户追问补充素材，达标后再保存。
+7. Generate `image_prompts.md`（必做，6 张公众号配图场景描述），then stop.
+8. Generate `xhs_post.md` (storyboard + caption + hashtags, no direct image generation), then stop.
+9. If user asks for revisions, iterate text only.
 
 Do not produce both drafts in a single conversational response. The split is mandatory.
 
+---
+
 ## Length Gates (Hard Rules)
 
-- WeChat article: 2400–2600 Chinese characters (target ~2500).
-- Xiaohongshu caption: at least 500 Chinese characters (recommended 500–700).
-- Each Xiaohongshu image: 1 headline + 2–4 short bullet points.
+- WeChat article: 见对应 format 文件（不同体裁有不同目标字数）。
+- Xiaohongshu caption: 200–400 Chinese characters.
+- Each Xiaohongshu image: scene description + 1 headline + content.
 
-If a draft is under-length, expand before saving the file.
+If a draft is under-length, do follow-up questioning first, then revise.
 
-## WeChat Article Rules
+---
 
-**核心原则：让读者跟着经历走，自己产生感受，而不是被教育。**
+## Voice and Anti-AI Taste
 
-**叙事结构（优先使用）：**
-- 从一个具体的时间点或场景切入，不要从"宏大背景"开头
-- 按时间线或因果链推进，在经历中自然带出观点
-- 结尾点到为止，不做总结，不升华，不说"这说明了什么"
-- 允许思路有跳跃感，不需要每段都有完美的过渡句
-
-**禁止使用"教程框架"：**
-- ❌ 开头痛点 → 中间方案 → 结尾升华（这是 AI 的默认模板）
-- ❌ 能做什么 → 在哪做 → 能带来什么改变（这是说明书结构）
-- ❌ 结尾用金句总结规律，比如"如果你不能……那再强的模型也只是黑盒"
-- ❌ 把经历包装成完美成功案例，夸大成果
-
-**关于小标题：** 可以用，标题要是"这件事叫什么"，不是"这件事说明了什么道理"。
-
-- Allow variants: "观点短论" or "清单干货" when the topic fits better.
-- Keep paragraphs short, avoid overly academic tone.
-- Use clear section subtitles to improve scanability; let the model decide the count based on content density.
-- Include 2–4 scannable lists.
-- End with a **tight summary /收束** (no marketing CTA).  
-  - 2–4 sentences，回到开头的困境与变化  
-  - 可以留一个问题，但不引导"关注/评论/私信/领取"  
-  - 不做夸大承诺，不用模板式鸡汤
-- WeChat images can be photo/illustration/diagram based on tone; do not force Q-style.
-- Ensure the main body length meets the 2400–2600 character gate.
-- Output file should start with the title, then a ~30字简介, then正文; no metadata block.
-- Apply the voice constraints defined in `references/my_voice.md` by default. This is your highest priority.
-  - 长短句结合、有节奏
-  - 允许连接词：所以/但是/因为/比如/结果
-  - 避免：然而/因此/基于/催生/驱动
-  - 不新增原文未提内容或案例
-  - 保持口语化与原用词习惯
-
-## WeChat Image Rules
-
-- Provide 1 cover image + 4–6 WeChat insert images by default.
-- Aspect ratio: **4:3 landscape** for all WeChat images.
-- Cover image (hard rule): **use Q-style main character**, theme-aligned, and **must be text-free** (no title/subtitle/labels/numbers/letters/watermark/logo).
-  - Add an explicit negative constraint in prompts: `no text, no typography, no letters, no numbers, no watermark, no logo`.
-- For WeChat cover prompts, do **not** specify any on-image text; if a draft includes an “On-image text” field for the cover, delete it and rewrite the prompt as text-free.
-- Insert images can be **flexible style** (photo / illustration / diagram), but **must be consistent within the same article**.
-- Define **one visual style baseline** per material and apply it to all WeChat + XHS images (color palette, line weight, lighting, texture, character treatment).
-- Record this style baseline in `wechat_notes.md` and reuse it verbatim in every later image prompt.
-- WeChat images should be **light on text**, but **not text-free** when the image is a flow/diagram/structure.
-- If image type is **diagram/flow/architecture**, include **short labels** (2–6 words) on nodes/steps.
-- Avoid generic icon-only images without labels; require visual + label pairing for meaning.
-- Avoid “PPT icon” look: no flat template cards, no generic UI boxes; prefer illustrated scenes or soft infographic with texture.
-- For each image: specify placement (section), intent, and recommended style (photo/illustration/diagram).
-- Include prompts for each image; only use Q-style character if it fits the tone.
-
-For structure variants, read `references/workflow.md`.
-For voice and phrasing patterns, read `references/voice.md`.
-
-## Xiaohongshu Storyboard Rules
-
-- Use an image-first narrative: cover → why → before/after → workflow → tools → results → reflection/CTA.
-- Keep the main character consistent across images.
-- Each image should include 1 headline + 2–4 short points.
-- Favor high-contrast numbers or short metrics in at least 2 images.
-- Aspect ratio: **9:16 portrait** (mobile full-screen) for all XHS images.
-- Do **not** print aspect-ratio labels on the image (e.g., “9:16版/竖图版/比例:9:16”).
-- Reuse the exact same style baseline defined in `wechat_notes.md`; do not introduce new style families in XHS prompts.
-- Ensure caption length is 500+ characters.
-
-## Xiaohongshu Caption Rules
-
-- Mirror the WeChat narrative arc in a compressed form: hook → problem framing → method/workflow → results → reflection/收束.
-- Keep paragraphs short; include 1 scannable micro-list (3–5 bullets) max.
-- End tight (2–3 sentences). You may leave 1 question, but avoid marketing CTAs (no “关注/评论/私信/领取”).
-- Apply the “去 AI 味” constraints by default (same as WeChat rules).
-
-For visual rules and layout guidance, read `references/xhs_visual.md`.
-
-## Character Consistency Rules
-
-- Use portrait photos as the **identity anchor** when making a “main character”.
-  - Preferred location (workspace): `inputs/images/portraits/`
-  - Alternative (inside this skill): `assets/portraits/`
-- 在图像中保持主角相同的发型、脸型。
-- Do not require a literal consistent human character every time: allow “character variants” (e.g., a hoodie mascot / one recognizable feature / symbolic object) as long as it keeps recognizable continuity.
-- Keep the overall style pack consistent across images in the same material (palette/texture/line weight).
-
-## Image Prompt Format
-
-For each image, output:
-
-- Scene intent
-- On-image text (headline + bullets or short labels)
-  - Required for Xiaohongshu images
-  - Optional for WeChat insert images
-  - Forbidden for WeChat cover images (cover must be text-free)
-  - Do not include ratio/size labels as on-image text (e.g., “9:16版/3:4版/竖图版”)
-  - **Whitelist rule (hard)**: only allow the exact text provided under “On-image text”; do not invent any extra corner labels such as “9:16版/移动端全屏报/竖图版”.
-- Negative constraints (required for WeChat cover): `no text, no typography, no letters, no numbers, no watermark, no logo`
-- Composition and props
-- Character description (refer to portrait assets)
-- Style keywords (include the shared **style pack** for this article)
-- Aspect ratio
-- Coze prompt (final executable prompt)
-- QA checklist result (pass/fail + reason + retry count)
-
-## Coze API (optional)
-
-If the user wants automatic image generation via Coze, use the local script:
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "your prompt"
-```
-
-For this project, always attach a random portrait reference (unless the user explicitly says not to) and initialize one dedicated session id per material:
-
-```bash
-COZE_SESSION_ID="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')" \
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "your prompt" --ref-image auto --no-run-id
-```
-
-For consistency across multiple images in the same material:
-
-- Reuse the same `COZE_SESSION_ID` for the whole material (do not pass `--new-session` for every single image).
-- Pin the portrait reference:
-  - Easiest: run once with `--ref-image auto`, then reuse the printed portrait path for later images; or
-  - Set `COZE_REF_IMAGE=/absolute/or/workspace/relative/path.jpg` (so `--ref-image auto` always uses that portrait); or
-  - Set a stable `COZE_SESSION_ID` (the script deterministically picks a portrait based on session id).
-
-To guarantee a consistent visual style across different topics, prepend the global style lock **and** apply the correct platform lock (to avoid wrong aspect ratios / unwanted “9:16版” labels):
-
-- WeChat cover (4:3 landscape, **no text**):
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "your prompt" \\
-  --profile wechat_cover --ref-image auto --no-run-id
-```
-
-- Xiaohongshu pages (9:16 portrait, **only allow the provided On-image text**):
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "your prompt" \\
-  --profile xhs --ref-image auto --no-run-id
-```
-
-The script reads `COZE_API_TOKEN` from the environment, or prompts once per run.
-It also loads `~/.codex/skills/wechat-xhs-content/.env` / `.env.local` if present.
-
-Image filename controls (optional env vars):
-
-- `COZE_IMAGE_PREFIX` (e.g., `wechat_cover`, `wechat_insert`, `xhs`)
-- `COZE_IMAGE_SEQ_START` (default `1`)
-- `COZE_IMAGE_PAD` (default `2`, e.g., `01`, `02`)
-- `COZE_IMAGE_INCLUDE_RUN_ID` (default `1`; set to `0` for clean `xhs_01` style names)
-- `COZE_IMAGE_RUN_ID` (optional fixed run id)
-- `COZE_MIN_IMAGE_BYTES` (default `50000`)
-- `COZE_SAVE_RAW` (set to `1` to save small/invalid responses into `outputs/archive/invalid_outputs`)
-
-Example (XHS ordered images):
-
-```bash
-COZE_IMAGE_PREFIX=xhs COZE_IMAGE_SEQ_START=1 COZE_IMAGE_PAD=2 COZE_IMAGE_INCLUDE_RUN_ID=0 \\
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "prompt" --profile xhs
-```
-
-Save into a specific material folder:
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "prompt" --out-dir "outputs/wechat/YYYYMMDD_HHMMSS_<素材名>/images"
-```
-
-First-image-only rule (hard):
-
-- When generating images (WeChat or XHS), generate **only the first image** first, show it to the user, and wait for “风格OK/继续” before generating the rest.
-
-## Automated QA Script (recommended)
-
-Use this wrapper to run generation + AI image QA + fail-delete-regenerate in one loop:
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate_with_qa.py "your prompt" \
-  --profile xhs \
-  --out-dir "outputs/xhs/YYYYMMDD_HHMMSS_<素材名>/images" \
-  --prefix xhs \
-  --seq 1 \
-  --ref-image auto \
-  --qa-platform xhs \
-  --allowed-text-file "/absolute/path/to/on_image_text.txt"
-```
-
-For WeChat cover no-text QA:
-
-```bash
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate_with_qa.py "your prompt" \
-  --profile wechat_cover \
-  --out-dir "outputs/wechat/YYYYMMDD_HHMMSS_<素材名>/images" \
-  --prefix wechat_cover \
-  --seq 1 \
-  --ref-image auto \
-  --qa-platform wechat \
-  --require-no-text
-```
-
-Hard behavior of this wrapper:
-
-- QA fails => delete failed image file immediately and regenerate same index.
-- Max retries per image default: 3 (configurable).
-- Requires `OPENAI_API_KEY` for AI visual QA.
-
-## Unified Style Lock (Hard Rule)
-
-- Use one unified style lock chain for both platforms:
-  - Base lock: `references/global_style_lock.txt`
-  - Platform lock: WeChat uses `wechat_cover` or `wechat_insert`; XHS uses `xhs`
-- Platform locks can only control ratio/text rules. They must not override the material style baseline.
-- Keep style words stable across all images of one material. Do not switch to another style family mid-run.
-- Keep the same portrait identity anchor and same `COZE_SESSION_ID` across all images in one material.
-
-## Image QA + Regeneration Loop (Hard Rule)
-
-Run this loop for **every** generated image (WeChat and XHS):
-
-1. Check image against hard requirements:
-   - Ratio is correct (WeChat 4:3, XHS 9:16).
-   - Text policy is correct (cover no-text, XHS text whitelist only, no ratio labels).
-   - No watermark/logo/二维码/角标。
-   - Character consistency is preserved (face/hair/silhouette).
-   - Style baseline remains consistent (palette/line weight/lighting/texture).
-2. If failed:
-   - Delete the failed file immediately (`rm -f <failed_image_path>`).
-   - Tighten prompt constraints and regenerate the **same image index**.
-   - Retry until pass (max 3 retries per image).
-3. If still failing after 3 retries:
-   - Stop and ask user to adjust direction before continuing.
-
-Only keep passed images in the material `images/` folder; do not keep failed drafts.
-
-Optional env overrides:
-
-- `COZE_STREAM_URL` (default: https://vttznq9qz8.coze.site/stream_run)
-- `COZE_RUN_URL` (default: https://vttznq9qz8.coze.site/run)
-- `COZE_WORKFLOW_ID` (recommended for coze.cn)
-- `COZE_PROJECT_ID` and `COZE_SESSION_ID` (legacy stream_run payload)
-- `COZE_USE_STREAM` (set to 0 to force non-stream)
-
-If `COZE_WORKFLOW_ID` is set, also set `COZE_STREAM_URL=https://api.coze.cn/v1/workflow/stream_run` unless you have a custom proxy.
-
-### Gemini Flow Workflow (/run) mode
-
-If you deployed a minimal Gemini Flow workflow that exposes `POST /run` with body `{ "text": "...", "reference_image": { "url": "...", "file_type": "image" } }`,
-set these env vars (in the skill `.env.local`) so **any new chat** can call it directly without agent prompt drift:
-
-- `COZE_SIMPLE_WORKFLOW=1`
-- `COZE_RUN_URL=https://<your>.coze.site/run`
-- Optional defaults:
-  - `COZE_PROMPT_PREFIX_FILE=/Users/wali/.codex/skills/wechat-xhs-content/references/global_style_lock.txt`
-  - `COZE_REF_IMAGE_DEFAULT=inputs/images/portraits/<your>.jpg` (fixed) or `COZE_REF_IMAGE_DEFAULT=auto` (random pick)
-  - When using `auto`, the script samples from `inputs/images/portraits/` by default. To include skill portraits too: `COZE_REF_IMAGE_AUTO_INCLUDE_SKILL=1`.
-
-Then you can run `coze_generate.py` without passing `--prompt-prefix-file` / `--ref-image` every time; it will pick them from env.
-
-Reference portrait (for character consistency)
-
-Option A: legacy proxy `/stream_run` (no workflow needed)
-
-```bash
-# Randomly attach one portrait from inputs/images/portraits/ into the prompt payload.
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "prompt" --ref-image auto --no-run-id
-```
-
-Option B: official coze.cn workflow API (recommended when you control inputs)
-
-```bash
-# In your Coze workflow, define an input key (default expected: PORTRAIT) of type image/file.
-COZE_WORKFLOW_ID=... COZE_STREAM_URL=https://api.coze.cn/v1/workflow/stream_run \\
-python3 ~/.codex/skills/wechat-xhs-content/scripts/coze_generate.py "prompt" --ref-image "inputs/images/portraits/your.jpg" --ref-param PORTRAIT
-```
-
-For workflows, the script uploads the file via `COZE_FILES_UPLOAD_URL` (default: `https://api.coze.cn/v1/files/upload`) and passes `{ "file_id": "..." }` into the workflow parameters.
-
-## Files in This Skill
-
-- `inputs/images/portraits/` (workspace) or `assets/portraits/` (skill): Source portrait photos for Q-style character consistency
-- `scripts/coze_generate_with_qa.py`: Generation + AI QA + fail-delete-regenerate loop
-- `references/samples.md`: Available sample content pointers
-- `references/voice.md`: Voice and tone patterns
-- `references/workflow.md`: Structure templates and variants
-- `references/xhs_visual.md`: Visual layout and storyboard guidance
+- Dynamic blacklist: maintain `references/ai_taste_blacklist.md`; append terms user identifies as "AI味" and avoid them in future drafts.
+- Auto-learning voice samples: append high-quality, non-duplicate user natural-speech samples to `references/user_voice_sample.md` silently.
+- Do not collect short confirmations, commands, or low-signal text.
